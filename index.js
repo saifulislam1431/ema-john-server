@@ -1,6 +1,6 @@
 const express = require('express')
 const cors = require('cors')
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require("jsonwebtoken");
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -24,21 +24,23 @@ const client = new MongoClient(uri, {
   }
 });
 
-const jwtVerification = (req,res,next)=>{
-// console.log("Verifing");
-const authorization = req.headers.authorization;
-if(!authorization){
-  return res.status(403).send("Unauthorized Access")
-}
-const token = authorization.split(" ")[1]
-// console.log(token);
-jwt.verify(token,process.env.PRIVATE_KEYS,(error,decoded)=>{
-  if(error){
-    return res.status(403).send("Unauthorized access")
+
+// Jwt verification
+const jwtVerification = (req, res, next) => {
+  // console.log("Verifing");
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res.status(403).send("Unauthorized Access")
   }
-  req.decoded = decoded;
-  next();
-})
+  const token = authorization.split(" ")[1]
+  // console.log(token);
+  jwt.verify(token, process.env.PRIVATE_KEYS, (error, decoded) => {
+    if (error) {
+      return res.status(403).send("Unauthorized access")
+    }
+    req.decoded = decoded;
+    next();
+  })
 }
 
 async function run() {
@@ -47,40 +49,49 @@ async function run() {
     await client.connect();
 
     const productCollection = client.db("emaJohnProducts").collection("products");
-const cartCollection = client.db("emaJohnProducts").collection("customerCart")
+    const cartCollection = client.db("emaJohnProducts").collection("customerCart")
 
-// JWT API
-app.post("/jwt",(req,res)=>{
-  const user = req.body;
-  console.log(user);
-  const token = jwt.sign(user , process.env.PRIVATE_KEYS,{expiresIn:'2h'});
-  res.send({token})
-})
+    // JWT API
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const token = jwt.sign(user, process.env.PRIVATE_KEYS, { expiresIn: '2h' });
+      res.send({ token })
+    })
 
-    app.get("/allProducts", async(req,res)=>{
-        const result = await productCollection.find({}).toArray();
-        res.send(result)
+    // Get all products API
+    app.get("/allProducts", async (req, res) => {
+      const result = await productCollection.find({}).toArray();
+      res.send(result)
     })
 
 
     //Get Product by query
-    app.get("/cartProducts",jwtVerification,async(req,res)=>{
+    app.get("/cartProducts", jwtVerification, async (req, res) => {
       const decoded = req.decoded;
-       if(decoded.email !== req.query.userEmail ){
+      if (decoded.email !== req.query.userEmail) {
         res.status(403).send("Forbidden")
-       }
-      let query = {} 
-      if(req.query.userEmail){
-        query = {userEmail : req.query.userEmail}
+      }
+      let query = {}
+      if (req.query.userEmail) {
+        query = { userEmail: req.query.userEmail }
       }
       // console.log(query);
       const result = await cartCollection.find(query).toArray();
       res.send(result)
     })
 
+    // Delete API
+    app.delete("/cartProducts/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await cartCollection.deleteOne(query);
+      res.send(result);
+    })
+
 
     // Add products of customer in db
-    app.post("/cartProducts",async(req,res)=>{
+    app.post("/cartProducts", async (req, res) => {
       const body = req.body;
       const result = await cartCollection.insertOne(body);
       res.send(result)
@@ -111,10 +122,10 @@ app.post("/jwt",(req,res)=>{
 run().catch(console.dir);
 
 
-app.get("/",(req,res)=>{
-    res.send("The Ema John Server")
+app.get("/", (req, res) => {
+  res.send("The Ema John Server")
 })
 
-app.listen(port , ()=>{
-    console.log(`This app listening at port ${port}`)
+app.listen(port, () => {
+  console.log(`This app listening at port ${port}`)
 })
