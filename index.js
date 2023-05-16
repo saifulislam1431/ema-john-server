@@ -24,6 +24,23 @@ const client = new MongoClient(uri, {
   }
 });
 
+const jwtVerification = (req,res,next)=>{
+// console.log("Verifing");
+const authorization = req.headers.authorization;
+if(!authorization){
+  return res.status(403).send("Unauthorized Access")
+}
+const token = authorization.split(" ")[1]
+// console.log(token);
+jwt.verify(token,process.env.PRIVATE_KEYS,(error,decoded)=>{
+  if(error){
+    return res.status(403).send("Unauthorized access")
+  }
+  req.decoded = decoded;
+  next();
+})
+}
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -47,12 +64,16 @@ app.post("/jwt",(req,res)=>{
 
 
     //Get Product by query
-    app.get("/cartProducts",async(req,res)=>{
+    app.get("/cartProducts",jwtVerification,async(req,res)=>{
+      const decoded = req.decoded;
+       if(decoded.email !== req.query.userEmail ){
+        res.status(403).send("Forbidden")
+       }
       let query = {} 
       if(req.query.userEmail){
         query = {userEmail : req.query.userEmail}
       }
-      console.log(query);
+      // console.log(query);
       const result = await cartCollection.find(query).toArray();
       res.send(result)
     })
