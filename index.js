@@ -32,10 +32,11 @@ async function run() {
     const productCollection = client.db("emaJohnProducts").collection("products");
 const cartCollection = client.db("emaJohnProducts").collection("customerCart")
 
-
-app.get("/jwt",(req,res)=>{
+// JWT API
+app.post("/jwt",(req,res)=>{
   const user = req.body;
-  const token = jwt.sign(user , process.env.PRIVATE_KEYS);
+  console.log(user);
+  const token = jwt.sign(user , process.env.PRIVATE_KEYS,{expiresIn:'2h'});
   res.send({token})
 })
 
@@ -43,12 +44,21 @@ app.get("/jwt",(req,res)=>{
         const result = await productCollection.find({}).toArray();
         res.send(result)
     })
+
+
+    //Get Product by query
     app.get("/cartProducts",async(req,res)=>{
-      const result = await cartCollection.find({}).toArray();
+      let query = {} 
+      if(req.query.userEmail){
+        query = {userEmail : req.query.userEmail}
+      }
+      console.log(query);
+      const result = await cartCollection.find(query).toArray();
       res.send(result)
     })
 
 
+    // Add products of customer in db
     app.post("/cartProducts",async(req,res)=>{
       const body = req.body;
       const result = await cartCollection.insertOne(body);
