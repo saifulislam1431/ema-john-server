@@ -61,8 +61,19 @@ async function run() {
 
     // Get all products API
     app.get("/allProducts", async (req, res) => {
-      const result = await productCollection.find({}).toArray();
+      // console.log(req.query);
+      const page = parseInt(req.query.page) || 0;
+      const limit = parseInt(req.query.limit) || 15;
+      const skip = page*limit;
+
+      const result = await productCollection.find().skip(skip).limit(limit).toArray();
       res.send(result)
+    })
+
+    // Get total Product for pagination
+    app.get("/totalProducts",async(req,res)=>{
+      const result = await productCollection.estimatedDocumentCount();
+      res.send({totalProducts : result})
     })
 
 
